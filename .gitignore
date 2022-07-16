@@ -1,0 +1,6 @@
+files/
+now/
+result/
+__pycache__/
+*_files/
+.DS_Store
