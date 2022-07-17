@@ -66,6 +66,8 @@ class DFS:
             for chunk in chunks:
                 os.remove(f"{self.main_dir}/{chunk}")
 
+    def get_master_record(self):
+        return self.master_record
 
             
             
