@@ -2,6 +2,7 @@ from MessagePassing.MessagePassing import MessagePassing
 from api import app
 from DFS import DFS
 from threading import Thread
+import os
 
 def save_file(dfs_node,mp):
     while True:
@@ -19,6 +20,12 @@ def send_file(dfs_node,mp):
         with open(f"{dir_name}/{file}" ,"rb") as f:
             data=f.read()
             mp.send(data,dest=0, tag=2)
+
+def remove_file(dfs_node,mp):
+    while True:
+        file = mp.recv(src=0,tag=3)
+        dir_name = dfs_node.get_main_dir()
+        os.remove(f"{dir_name}/{file}")
       
 def server():
 
@@ -56,6 +63,9 @@ def server():
 
         send_thread = Thread(target=send_file, args=(dfs_node,mp))
         send_thread.start()
+
+        remove_thread = Thread(target=remove_file, args=(dfs_node,mp))
+        remove_thread.start()
 
 
 if __name__ == "__main__":

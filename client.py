@@ -8,6 +8,7 @@ while program_on:
     print("1) upload")
     print("2) list")
     print("3) Download")
+    print("4) remove")
     print("5) exit")
     choice = int(input("Choice: "))
 
@@ -30,7 +31,11 @@ while program_on:
         file=response.headers.get("Content-Disposition").split("filename=")[1]
         open(file, "+wb").write(response.content)
          
-        
+    if choice == 4:
+        filename = input("Filename: ")
+        r = requests.get(f'{URL}/remove?filename={filename}')
+        print(r.text)
+
     if choice == 5:
         print("Goodbye!")
         program_on = False

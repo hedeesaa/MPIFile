@@ -61,6 +61,28 @@ def download(filename):
         return "This file doesnt exist"
     
 
+@app.route("/remove", methods=["GET"])
+def remove():
+    filename=request.args.get("filename")
+    if check_if_file_exits(filename):
+
+        dfs = app.config["DFS"]
+        mpi = app.config["MPI"]
+
+        record=dfs.get_specific_record(filename)
+
+        for node, chunks in record["where"].items():
+            for chunk in chunks:
+                mpi.send(chunk, dest=node,tag=3)
+
+        try:
+            dfs.delete_file_master(filename)
+        except:
+            pass
+
+        del dfs.get_master_record()[filename]
+        return "OK"
+    return "The file doesnt exist"
     
 def check_if_file_exits(filename):
     dfs = app.config["DFS"]
@@ -84,9 +106,7 @@ def send_files_to_nodes(dfs_,filename_,mpi):
             with open(f"{dir_name}/{chunk}" , "rb") as f:
                 a=f.read()
                 mpi.send(a, dest=node,tag=1)
-
-
-
+                
     ## delete chuncks and files 
     dfs_.delete_file_master(filename_)
     dfs_.delete_chunks_master(filename_)
