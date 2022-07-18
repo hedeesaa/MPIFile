@@ -1,82 +1,62 @@
-from MessagePassing import MessagePassing
+from MessagePassing.MessagePassing import MessagePassing
+from api import app
 from DFS import DFS
-import time
 from threading import Thread
-from flask import Flask, request
-from werkzeug.utils import secure_filename
-import sys
-import json
 
-
-
-MASTER = 0
-mp = MessagePassing()
-rank = mp.get_rank()
-
-all_master_record = ""
-
-
-def master_func(fm):
-    time.sleep(10)
-    FileName = "comp6231.2022s.a03.assignment.iii.pdf"
-    master_record = fm.generate_record(FileName)
-    global all_master_record
-    all_master_record = master_record
-    print(master_record,file=sys.stderr)
-    print("after calling master record")
-
-    for node, chunks in master_record[FileName]["where"].items():
-        for chunk in chunks:
-
-            mp.send(chunk, dest=node)
-            with open(f"master_files/{chunk}" , "rb") as f:
-                a=f.read()
-                mp.send(a, dest=node)
-
-    ## delete chuncks and files 
-    fm.delete_file_master(FileName)
-
-def node_func():
-    dir_name = f"{rank}_files"
-    fm = DFS(directory_name=dir_name,node_list=0)
+def save_file(dfs_node,mp):
     while True:
-        file = mp.recv(src=0)
+        file = mp.recv(src=0,tag=1)
+        dir_name = dfs_node.get_main_dir()
         with open(f"{dir_name}/{file}" ,"+wb") as f:
-                data = mp.recv(src=0)
-                f.write(data)
-        
-def api_server(fm):
-    app = Flask(__name__)
+            data = mp.recv(src=0, tag=1)
+            f.write(data)
 
-    
-    @app.route('/upload', methods=['POST'])
-    def update():
-        app.config['UPLOAD_FOLDER'] = "./here/"
-        if request.method == 'POST':
-            file = request.files['file']
-            result = json.dumps(request.form)
-            print(result ,file=sys.stderr)
-            import os
-            if file:
-                filename = secure_filename(file.filename)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        return "OK"
-    
-    @app.route('/list', methods=['GET'])
-    def list_files():
-        return all_master_record
-    
-    
 
-    app.run()   
+def send_file(dfs_node,mp):
+    while True:
+        file = mp.recv(src=0,tag=2)
+        dir_name = dfs_node.get_main_dir()
+        with open(f"{dir_name}/{file}" ,"rb") as f:
+            data=f.read()
+            mp.send(data,dest=0, tag=2)
+      
+def server():
 
-if rank == MASTER:
-    fm = DFS(directory_name="master_files",node_list=mp.get_nodes_list())
+    MASTER = 0
+    mp = MessagePassing()
+    rank = mp.get_rank()
 
-    api_thread = Thread(target=api_server, args=(fm,))
-    api_thread.start()
+    if rank == MASTER:
+        print(f"Master-{rank} is Ready...")
 
-else:
-    print(f"My rank is {rank}")
-    node_thread = Thread(target=node_func)
-    node_thread.start()
+        try:
+
+            dfs = DFS(directory_name="master_files",
+                        node_list=mp.get_nodes_list())
+            dfs.create_dir()
+
+            app.config['UPLOAD_FOLDER']="master_files"
+
+            app.config['DFS'] = dfs
+
+            app.config['MPI'] = mp
+
+            app.run()
+        except:
+            print("Couldnt Create Directory")
+            exit
+
+    else:
+        print(f"Node-{rank} is Ready...")
+        dfs_node = DFS(directory_name=f"{rank}_files")
+        dfs_node.create_dir()
+
+        save_thread = Thread(target=save_file, args=(dfs_node,mp))
+        save_thread.start()
+
+        send_thread = Thread(target=send_file, args=(dfs_node,mp))
+        send_thread.start()
+
+
+if __name__ == "__main__":
+    server()

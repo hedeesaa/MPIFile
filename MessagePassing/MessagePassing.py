@@ -1,6 +1,7 @@
 from mpi4py import MPI
 
 class MessagePassing:
+    
     def __init__(self):
         self.comm = MPI.COMM_WORLD
     
@@ -9,10 +10,13 @@ class MessagePassing:
     
     def get_nodes_list(self):
         return self.comm.Get_size()-1
-    
-    def send(self, data, dest ):
-        self.comm.send(data, dest=dest)
-    
-    def recv(self, src):
-        data = self.comm.recv(source=src)
+
+    def send(self, data, dest, tag):
+        self.comm.send(data, dest=dest,tag= tag)
+
+    def recv(self, src, tag):
+        data = self.comm.recv(source=src,tag=tag)
         return data
+
+    
+    
